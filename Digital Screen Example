@@ -1,0 +1,56 @@
+//this code fills the digital screen with random colors.
+//to make some colors a bit muted for distinct color palettes, change one of the "255's" in the code to something else
+//if that made no sense, here's an example of what I mean:
+
+//MUL R0, 100 // RED
+//MUL R1, 100 // GREEN
+//MUL EDX, 255 // BLUE
+
+// If you were to change the lines in the code to what they are above, you would get a random chance to have any
+// shade of blue, but its always going to have more muted reds and greens (of varying degrees).
+
+//quick note: this code is a bit inefficient. If your new to the cpu and want to challenge yourself a bit, 
+//    see if you can remove the "PIXEL" label and its data entirely from the program and just use registers. 
+
+// [H O W  T O  U S E]:
+
+// wire clk on the cpu to a toggle button and turn the button on
+// wire clk on the digital screen to the same toggle button (or a different one if you wish)
+// place down a digital screen and wire the membus of the cpu to the digital screen
+// (optional) place down a wire value chip and wire the frequency of the cpu to a number circa 120000.
+//    This makes the screen fill up quicker. You can use higher numbers if you wish but if the number is too high the game may 
+//    not agree with this and will slow down.
+
+
+INIT:
+mov [65536+1048572], 128 //height
+mov [65536+1048572+1], 128 //width
+MOV [65536+1048574], 1
+MOV [65536+1048569], 1
+MOV EAX, 65536
+
+MAIN:
+
+RAND EDX
+RAND R0
+RAND R1
+MUL R0, 255
+MUL R1, 255
+MUL EDX, 255
+FINT EDX
+FINT R0
+FINT R1
+MOV EBX, PIXEL
+MOV [EBX], EDX
+MOV [EBX+1], R0
+MOV [EBX+2], R1
+
+MOV EBX, PIXEL
+MOV [EAX], [EBX] 
+MOV [EAX+1], [EBX+1] 
+MOV [EAX+2], [EBX+2] 
+ADD EAX, 3
+JMP MAIN
+
+PIXEL:
+DB 255, 255, 255
