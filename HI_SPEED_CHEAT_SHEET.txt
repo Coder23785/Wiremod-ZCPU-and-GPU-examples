@@ -1,0 +1,338 @@
+
+
+[README FIRST]	[README FIRST]	[README FIRST]
+
+////////////////////////////////////////////////////////////////
+The "CPUOS4" along with the stuff about address "1100000"
+is not important and should he ignored. It's just some address
+stuff for one of my things.
+AND
+IGNORE the "HIRES CONSOLE SCREEN". 
+////////////////////////////////////////////////////////////////
+
+
+
+
+
+1100000                         beginning address of hi-res display among other things
+1100000 - 1100000+(2100*4)      (2100 per screen) (4 screens)
+1100000+8400+100                (+100 is just to make sure address spaces dont overlap) \
+                                (after the hires screen) (address for cd ray)
+                                
+                                
+65536+1200000 - BASE ADDR FOR CPUOS4 SPECIFIC DEVICES
+[CPUOS4 SPECIFIC]
+[1200000] - ISA BUS CONNECTION, NO STANDARD PROTOCOL ATM. For now, use a custom protocol for each device pair to send data.
+[1300000] - gpu memory viewer card (connect via ethernet cable)
+
+[HIRES CONSOLE SCREEN]
+RESOLUTION - 60X36 characters
+
+
+extended bus info
+bigdogmat: ControlDataSize is by default 32, but can be set by address 16
+bigdogmat: [0..15] Address bus settings
+bigdogmat: [16] Control data area size
+bigdogmat: [17] Write to request device info
+bigdogmat: [18] Data transfer rate
+bigdogmat: [19] Override returned device type (0: no override)
+bigdogmat: [20] Perform recursive scan
+bigdogmat: [32..] Device types
+bigdogmat: that 32.. ending being the ControlDataSize
+
+
+HiSpeed Devices Cheat Sheet
+
+CPU
+ERROR CODES TABLE ///////////////////////////////////////// ERROR CODES TABLE /////////////////////////////////////////
+0 Reset
+1 Halt
+2 End of program execution
+3 Division by zero
+4 Unknown opcode
+5 Internal processor error
+6 Stack error (overflow/underflow)
+7 Memory read/write fault
+8 MemBus fault
+9
+9 Write access violation (page protection)
+10 Port read/write fault
+11 Page acccess violation (page protection)
+12 Read access violation (page protection)
+13 General processor fault
+14 Execute access violation (page protection)
+15 Address space violation
+17 Frame instruction limit (GPU only)
+23 String read error (GPU only)
+28 Page read access trap
+29 Page write access trap
+30 Page access trap
+31 Debug trap
+ERROR CODES TABLE ///////////////////////////////////////// ERROR CODES TABLE /////////////////////////////////////////
+
+   CPU Documentation
+   [1]http://www.wiremod.com/forum/cpu-tutorials-programs/151-documentatio
+   n.html
+   Last Memory Adress 65535
+     Links:
+       1. http://www.wiremod.com/forum/cpu-tutorials-programs/151-documentation.html
+
+Consolescreen
+
+   Force cache refresh                                     2020
+   Cached blocks size (up to 28, 0 if disabled)            2021
+   Screen ratio (read only)                                2022
+   Hardware scale                                          2023
+   Rotation (0 - 0, 1 - 90, 2 - 180, 3 - 270)          2024
+   Brightness White                                        2025
+   Brightness B                                            2026
+   Brightness G                                            2027
+   Brightness R                                            2028
+   Vertical scale (1)                                      2029
+   Horizontal scale (1)                                    2030
+   Low shift column                                        2031
+   High shift column                                       2032
+   Low shift row                                           2033
+   High shift row                                          2034
+   Charset, always 0                                       2035
+   Brightness (additive)                                   2036
+   Shift cells (number of cells, >0 right, <0 left)        2037
+   Shift rows (number of rows, >0 shift up, <0 shift down) 2038
+   Hardware Clear Row (Writing clears row)                 2039
+   Hardware Clear Column (Writing clears column)           2040
+   Hardware Clear Screen                                   2041
+   Hardware Background Color (000)                         2042
+   Cursor Blink Rate (0.50)                                2043
+   Cursor Size (0.25)                                      2044
+   Cursor Address                                          2045
+   Cursor Enabled                                          2046
+   Clk                                                     2047
+
+Digitalscreen
+
+
+1048569 is the address of the color mode
+
+   RGB data               0 - 786431
+   Color mode
+   0: RGBXXX;
+   1: R G B;
+   2: R*65536 + G*256 + B;
+   3: RRRGGGBBB           1048569 
+   Clear row              1048570
+   Clear column           1048571
+   Height                 1048572
+   Width                  1048573
+   Hardware Clear Screen  1048574
+   CLK                    1048575
+
+CD Ray
+
+   Infothread by Xandaros and Fox
+   [2]http://www.wiremod.com/forum/wiremod-tutorials/9305-support-cds-cd-r
+   ays.html
+   [W] Write ray on 0
+   [W] Read ray on 1
+   [R] Current sector (global) 2
+   [R] Current sector (on track) 3
+   [R] Current track 4
+   [R] Current stack 5
+   [R] Current address (global) 6
+   [R] Current address (in current stack) 7
+   [W] Buffer ready (read or write - pick the ray) 8
+   [W] Continious mode 9
+   [W] Wait for address mode 10
+   [W] Target address (in current stack) 11
+   [W] Wait for track&sector mode 12
+   [W] Target sector 13
+   [W] Target track 14
+   [R] Raw disk spin velocity 21
+   [R] Raw disk spin angle 22
+   [R] Raw distance from disk center 23
+   [R] Raw stack index 24
+   [R] Disk precision (Inches Per Block) 25
+   [R] Disk sectors (total) 26
+   [R] Disk tracks (total) 27
+   [R] First track number 28
+   [R] Bytes per block 29
+   [R] Disk size (per stack) 30
+   [R] Disk volume (bytes total) 31
+   Buffer 512 - 1023
+     Links:
+       2. http://www.wiremod.com/forum/wiremod-tutorials/9305-support-cds-cd-rays.html
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
+GPU
+
+   GPU Documentation
+   [3]http://www.wiremod.com/forum/cpu-tutorials-programs/7645-zgpu-docume
+   ntation.html
+   CLK 65535
+   RESET 65534
+   HARDWARE CLEAR 65533
+   Vertex mode (render vertex instead of RT) 65532
+   HALT 65531
+   RAM_RESET 65530
+   Horizontal image scale 65525
+   Vertical image scale 65524
+   Hardware scale 65523
+   Rotation (0 - 0, 1 - 90, 2 - 180, 3 - 270) 65522
+   Sprite size 32 65521
+   Image width (800) 65515
+   Image height (600) 65514
+   Real screen ratio 65513
+   Parameter list address (for dwritefmt) 65512
+   Cursor X (0..1) 65505
+   Cursor Y (0 - 1) 65504
+   Cursor visible 65503
+   Brightness W 65495
+   Brightness R 65494
+   Brightness G 65493
+   Brightness B 65492
+   Contrast W 65491
+   Contrast R 65490
+   Contrast G 65489
+   Contrast B 65488
+   Circle quality (3 - 128) 65485
+   Offset Point X 65484
+   Offset Point Y 65483
+   Rotation (rad) 65482
+   Scale 65481
+   Center point X 65480
+   Center point Y 65479
+   Circle start (rad) 65478
+   Circle end (rad) 65477
+   Line width (1) 65476
+   Scale X 65475
+   Scale Y 65474
+   Font align 65473
+   ZOffset 65472
+     Links:
+       3. http://www.wiremod.com/forum/cpu-tutorials-programs/7645-zgpu-documentation.html
+     -- Reset internal GPU registers
+  --  [131072]..[2097151] - Extended GPU memory (2MB GPU)
+  --  [131072]..[1048576] - Extended GPU memory (1MB GPU)
+  --  [131072]..[524287]  - Extended GPU memory (512K GPU)
+  --  [131072]..[262143]  - Extended GPU memory (256K GPU)
+  --                        No extended memory  (128K GPU)
+  --  [65536]..[131071]   - MemBus mapped memory (read/write)
+  --                        No extra memory beyond 65536 (64K GPU)
+  --
+  -- Hardware control registers:
+  --  [65535] - CLK
+  --  [65534] - RESET
+  --  [65533] - HARDWARE CLEAR
+  --  [65532] - Vertex mode (render vertex instead of RT)
+  --  [65531] - HALT
+  --  [65530] - RAM_RESET
+  --  [65529] - Async thread reset
+  --  [65528] - Async thread clk
+  --  [65527] - Async thread frequency
+  --  [65526] - Player index (0 to 31)
+  --
+  -- Image control:
+  --  [65525] - Horizontal image scale
+  --  [65524] - Vertical image scale
+  --  [65523] - Hardware scale
+  --  [65522] - Rotation (0 - 0*, 1 - 90*, 2 - 180*, 3 - 270*)
+  --  [65521] - Sprite/texture size
+  --  [65520] - Pointer to texture data
+  --  [65519] - Size of texture data
+  --  [65518] - Raster quality
+  --  [65517] - Texture buffer (1: sprite buffer, 0: front buffer)
+  --
+  -- Vertex pipe controls:
+  --  [65515] - Image width (800)
+  --  [65514] - Image height (600)
+  --  [65513] - Real screen ratio
+  --  [65512] - Parameter list address (for dwritefmt)
+  --
+  -- Cursor control:
+  --  [65505] - Cursor X (0..1)
+  --  [65504] - Cursor Y (0..1)
+  --  [65503] - Cursor visible
+  --  [65502] - Cursor buttons (bits)
+  --
+  -- Brightness control:
+  --  [65495] - Brightness W
+  --  [65494] - Brightness R
+  --  [65493] - Brightness G
+  --  [65492] - Brightness B
+  --  [65491] - Contrast W
+  --  [65490] - Contrast R
+  --  [65489] - Contrast G
+  --  [65488] - Contrast B
+  --
+  -- Rendering settings
+  --  [65485] - Circle quality (3..128)
+  --  [65484] - Offset Point X
+  --  [65483] - Offset Point Y
+  --  [65482] - Rotation (rad)
+  --  [65481] - Scale
+  --  [65480] - Center point X
+  --  [65479] - Center point Y
+  --  [65478] - Circle start (rad)
+  --  [65477] - Circle end (rad)
+  --  [65476] - Line width (1)
+  --  [65475] - Scale X
+  --  [65474] - Scale Y
+  --  [65473] - Font horizontal align
+  --  [65472] - ZOffset
+  --  [65471] - Font vertical align
+  --  [65470] - Culling distance
+  --  [65469] - Culling mode (0: front, 1: back)
+  --  [65468] - Single-side lighting (1: front, -1: back)
+  --  [65467] - Memory offset of vertex data (non-zero means poly ops take indexes into this array)
+  --  [65466] - Texture rotation (rad)
+  --  [65465] - Texture scale
+  --  [65464] - Texture center point U
+  --  [65463] - Texture center point V
+  --  [65462] - Texture offset U
+  --  [65461] - Texture offset V
+  --
+  -- Misc:
+  --  [64512] - Last register
+  --  [63488]..[64511] - External ports
+    
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
+Keyboard
+
+   Key Numbering      0
+   Keyboard Buffer    1 - 31
+   ASCII Mapped Array 32 - 255
+
+Ranger
+
+   Trace             0
+   Result            1
+   Range             2
+   Default to Zero   3
+   Skew X (-1 ... 1) 4
+   Skey Y (-1 ... 1) 5
+   Trace Water       6
+
+HS Holoemitter
+
+   Clk 0
+   If you press 'use' on a point, its number will be put here 1
+   Pointsize 2
+   Flags (bit 0 = show beam, bit 1 = use GPS coords, bit 2 = individual
+   color for each point) 3
+   Number of points 4
+   All Points in one color 5 = point 1 X; 6 = point 1 Y; 7 = point 1 Z; 8
+   = point 2 X; ... etc
+   Individual colors mode 5 = point 1 X; 6 = point 1 Y; 7 = point 1 Z; 8 =
+   point 1 Red; 9 = point 1 Green; 10 = point 1 Blue; 11 = point 1 Alpha;
+   12 = point 2 X;
