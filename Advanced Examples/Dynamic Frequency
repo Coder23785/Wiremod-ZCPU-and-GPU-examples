@@ -1,0 +1,390 @@
+//CPU Dynamic Frequency Example
+
+//----------------------------------------------------------------------------------
+// General info:
+//      port7 is connected to the processor's frequency in order to have dynamic frequency
+//      the idea is that if the processor cannot report back a certain # of times in a given interval
+//      (this is configurable), then the processor will speed it self up so it can meet its
+//      report quota. When the processor isnt doing much, it will slow itself back down so 
+//      the game runs better.
+//
+//----------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------
+// DISCLAIMER:
+//      This was intended for use in a larger more complicated system that
+//      required a system for changing the cpu's frequency based of off how
+//      busy it was. 
+//
+//      However the only thing in this file is the system that controls 
+//      processor speed based off of whether or not it can meet a
+//      quota
+//
+//      That is why parts of this file reference a command buffer
+//      and virtual processor that, as previously stated were not
+//		  fully implemented (if at all) and aren't required by 
+//      the program.
+//      
+//      Also some of the comments may be wrong because I simplified 
+//      the method of measuring speed as well as some other things
+//      after they were already written. Though some have already been 
+//      revised, some could still be wrong. Sorry about that.
+//----------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------
+//READ HERE IF YOU WANT TO CHANGE THE INTERVAL TIME OR THE # OF REPORTS REQUIRED PER INTERVAL 
+//
+//      W A R N I N G:
+//
+//            There is no frequency limit built into this. Setting the interval
+//            time too high or the required reports too low will cause the frequency to
+//            increase quickly (the higher the frequency, the faster the frequency
+//            can increase) and will lag the game.
+//
+//      Variable for the interval time: D_INTERVALTIME
+//      Variable for the # of required reports per interval: D_REQUIREDREPORTSPERINTERVAL
+//		These variables should be around line 180
+//----------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------
+//"PROC IDs" or Procedure IDs are numbers that are sent to port0
+//for debugging purposes. They give context to the register values
+//that are sent over other ports by some
+//-----------------------------------------------------------------
+
+//--------------- PROC ID TABLE ------------------------------------------
+//INTERVALTIMER:          //PROC ID:1000   | USES EAX EBX ECX
+//INTERVALTIMERTIMECHK:   //PROC ID:10001
+//INTERVALTIMEUPDATE:     //PROC ID:100010
+//INTERVALTIMEREACHED:    //PROC ID:10002
+
+//INTERVALCMDHANDLER:     //PROC ID:1010
+//INTERVALCMDHANDLER_EXEC://PROC ID:10101 
+
+//FREQUENCYCHK:           //PROC ID:1020    | USES EAX EBX ECX 
+//FREQUENCYCHKRET:        //PROC ID:10203   | IF THE VALUES ARE EQUAL, SIMPLY RETURN FROM FUNCTION
+//FREQUENCYCHKINCREASE:   //PROC ID:10201
+//FREQUENCYCHKDECREASE:   //PROC ID:10202
+//FREQUENCYCHKTEST:       //PROC ID:10204
+//------------------------------------------------------------------------
+
+//--------------- DEBUG PROC ID TABLE ------------------------------------
+
+
+        //DEBUG ----------------------|
+        //DEBUG PROC ID:  102029900
+        //DEBUG TYPE:     PORT 6 HALT
+        //PARENT LABEL:   FREQUENCYCHKDECREASE
+        //DEBUG ----------------------|
+
+        //DEBUG ----------------------|
+        //DEBUG PROC ID:  102029901
+        //DEBUG TYPE:     PORT 6 HALT
+        //PARENT LABEL:   FREQUENCYCHKDECREASE
+        //DEBUG ----------------------|
+
+//------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------//
+//THE "D_INTERVALRUNCOUNTER" VARIABLE SHOULD BE UPDATED AS FAST AS POSSIBLE
+//INSTEAD OF ONLY BEING UPDATED AFTER A SPECIFIC TIME.
+//  THAT WAY, IT WILL SERVE AS AN ACCURATE MEASUREMENT OF SPEED.
+//  THE FREQUENCY SHOULD BE CHANGED BASED OFF OF THE INTERVAL COUNTER
+//  AND HOW MANY TIMES PER INTERVAL IT IS INCREASED. 
+//---------------------- This part below was not implemented -------//
+//  THE GOAL SHOULD BE TO HAVE THE INTERVALRUNCOUNTER UPDATE ONCE
+//  PER INTERVAL. FREQUENCY SHOULD BE ADJUSTED AUTOMATICALLY TO
+//  DO THIS.
+//-------------------------------------------------------------------------//
+
+INIT:
+CALL CLRPORTS0_7
+OUT 7,16000
+MAIN: //PROC ID:100
+OUT 0,100
+CALL INTERVALTIMER
+JMP MAIN
+
+// ------------------------------------------
+//INTERVAL TIMER - THIS FUNCTION SETS UP
+//  THE INSTRUCTION INTERVAL TIMER USED FOR
+//  SYNCH-ING THE OTHER PROCESSORS AND 
+//  ALLOCATING PROCESSING POWER
+// ------------------------------------------
+
+INTERVALTIMER: // USES EAX EBX ECX, PROC ID: 1000
+OUT 0, 1000
+PUSH EAX
+TIMER EAX
+MOV EBX, EAX
+INTERVALTIMERTIMECHK://PROC ID:10001
+OUT 0, 10001
+OUT 1, EAX
+OUT 2, EBX
+TIMER EAX //CURRENT TIME
+
+PUSH EAX //SAVE AND RESTORE EAX-ECX
+PUSH EBX //BECAUSE INTERVALTIMER NEEDS
+PUSH ECX //THEM
+CALL INTERVALCMDHANDLER
+POP ECX
+POP EBX
+POP EAX
+
+
+INTERVALTIMEUPDATE:// PROC ID: 100010
+CALL INTERVALRUNCOUNTERUPDATE
+PUSH EAX	  //EAX = CURRENT TIME
+SUB EAX, EBX 
+MOV ECX, EAX  //ECX = (CURRENT TIME - INITIAL TIME) 
+POP EAX       //EAX IS RESTORED (EAX = CURRENT TIME?)  
+PUSH EBX      //SAVE EBX (INITIAL TIME)
+MOV EBX, [D_INTERVALTIME]
+
+CMP ECX, EBX  // IF THE TIME DIFFERENCE (ECX) IS GREATER THAN THE INTERVAL TIME (EBX)
+			  // AKA IF THE PROCESSOR FAILED TO REPORT BACK IN TIME 
+			  
+POP EBX       //RESTORE EBX (EBX = INITIAL TIME )
+OUT 3, ECX
+
+JGE INTERVALTIMEREACHED  // DO WHATEVER NEEDS TO BE DONE AT THE END OF EVERY INTERVAL
+JMP INTERVALTIMERTIMECHK // CHECK THE TIME AGAIN
+
+
+INTERVALRUNCOUNTERUPDATE:
+//-----------------------------------------------------------
+    PUSH EAX                        //---------------------------------
+    MOV EAX, [D_INTERVALRUNCOUNTER] //
+    INC EAX                         // THIS CODE UPDATES "D_INTERVALRUNCOUNTER"
+    OUT 4, EAX                      //
+    MOV [D_INTERVALRUNCOUNTER], EAX // 
+    POP EAX                         //---------------------------------
+//-----------------------------------------------------------
+RET
+
+INTERVALRUNCOUNTERRESET:
+PUSH EAX
+XOR EAX, EAX
+MOV [D_INTERVALRUNCOUNTER], EAX
+POP EAX
+RET
+
+INTERVALTIMEREACHED://PROC ID:10002
+OUT 0,10002
+//CALL BUTTONTESTPORT6 //DEBUGGING FUNCTION, STOPS PROGRAM IF (PORT6 != 0)
+//CALL INTERVALRUNCOUNTERRESET
+PUSH EAX //SAVE AND RESTORE EAX-ECX
+PUSH EBX //BECAUSE INTERVALTIMER NEEDS
+PUSH ECX //THEM
+CALL FREQUENCYCHK
+POP ECX
+POP EBX
+POP EAX
+
+CALL INTERVALRUNCOUNTERRESET
+
+JMP INTERVALTIMERRET
+
+INTERVALTIMERRET:
+POP EAX
+RET
+// -------------------------------- INTERVAL DATA ---------------------------------------------------------------------
+D_INTERVALTIME: DB 0.1 //1 SECOND (LOWER THIS WHEN TESTING IS OVER)
+D_INTERVALRUNCOUNTER: DB 0 //# OF TIMES THE PROCESSOR HAS REPORTED BACK WITHIN THE INTERVAL TIME
+D_REQUIREDREPORTSPERINTERVAL: DB 30 //REPORTS QUOTA, AKA HOW HIGH THE INTERVALRUNCOUNTER NEEDS TO BE. IF THIS ISN'T MET, THE FREQUENCY WILL INCREASE
+// --------------------------------------------------------------------------------------------------------------------
+
+
+
+//--------------------------- INTERVALCMDHANDLER 
+// "INTERVALCMDHANDLER" EXECUTES A LIST OF COMMANDS THAT ARE LOCATED IN ITS "COMMAND BUFFER"
+// IT SUPPORTS A 1024 COMMANDS IN ITS BUFFER AT ONE TIME AND WILL EXECUTE ALL OF THEM BEFORE RETURNING
+
+//--------------------------- INTERVALCMDHANDLER DATA
+D_INTERVALCMDBUFFER: ALLOC 1024 //COMMAND BUFFER
+D_IBUFFERINDEX: DB 0            //COMMAND BUFFER INDEX
+D_IBUFFERCMDCOUNT: DB 0         //# OF COMMANDS CURRENTLY IN COMMAND BUFFER    
+//----------------------------------------------------
+
+//----------------------------------------------------
+    INTERVALCMDHANDLER: //PROC ID: 1010
+    OUT 0, 1010
+    
+    MOV ECX, D_IBUFFERCMDCOUNT
+    CMP ECX, 0 
+    JE INTERVALCMDBUFFEREMPTY //DO WHATEVER WHEN THE COMMAND BUFFER IS EMPTY
+    JL INTERVALCMDBUFFERERR_0001 //ERROR, BUFFER CMD COUNT IS BELOW 0
+    CMP ECX, 1024
+    JG INTERVALCMDBUFFERERR_0004 //ERROR, BUFFER CMD COUNT IS OVER 1024
+    
+    MOV EBX, D_IBUFFERINDEX
+    CMP EBX, 0
+    JL INTERVALCMDBUFFERERR_0002 //ERROR, BUFFER INDEX IS BELOW 0
+    CMP EBX, 1023
+    JG INTERVALCMDBUFFERERR_0003 //ERROR, BUFFER INDEX IS OVER 1023
+    
+    MOV EAX, D_INTERVALCMDBUFFER
+    
+    INTERVALCMDHANDLER_EXEC:// PROC ID:10101 
+                            //THIS PART ACTUALLY EXECUTES THE COMMANDS IN THE COMMAND BUFFER
+    OUT 0, 10101
+    PUSH EAX //SAVE AND RESTORE EAX-ECX BECAUSE INTERVALCMDHANDLER 
+    PUSH EBX //NEEDS THEM INTACT
+    PUSH ECX
+    CALLF [EAX+EBX], CS //[EAX+EBX] = [CMD BUFFER ADDRESS + BUFFER INDEX]| PROC ID: 10101
+    POP ECX
+    POP EBX
+    POP EAX
+    
+    INTERVALCMDHANDLERRET:
+    RET
+    
+    //------------------------------------- 
+    INTERVALCMDBUFFEREMPTY:
+    //------------------------------------------------------------------ 
+    //TODO: WRITE A ROUTINE THAT CHECKS THE COMMAND BUFFER TO SEE IF ITS 
+    //      ACTUALLY EMPTY?
+    //------------------------------------------------------------------ 
+    JMP INTERVALCMDHANDLERRET
+    //------------------------------------- 
+    
+    //------------------------------------- 
+    INTERVALCMDBUFFERERR_0001: //BUFFER CMD COUNT IS BELOW ZERO
+    JMP INTERVALCMDHANDLERRET
+    //------------------------------------- 
+    
+    //------------------------------------- 
+    INTERVALCMDBUFFERERR_0002: //BUFFER INDEX IS BELOW ZERO
+    JMP INTERVALCMDHANDLERRET
+    //------------------------------------- 
+    
+    //------------------------------------- 
+    INTERVALCMDBUFFERERR_0003: //BUFFER INDEX IS OVER 1023
+    JMP INTERVALCMDHANDLERRET
+    //------------------------------------- 
+
+    //------------------------------------- 
+    INTERVALCMDBUFFERERR_0004: //BUFFER COUNT IS OVER 1024
+    JMP INTERVALCMDHANDLERRET
+    //------------------------------------- 
+    
+// ------------------------------------------- END OF INTERVALTIMER
+
+
+//---------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------- FREQUENCYCHK -----------------------------------------------------------
+// FREQUENCYCHK USES THE INTERVALTIME, THE INTERVALRUNCOUNTER,
+// AND THE HARDWARE TIME TO SEE IF THE PROCESSOR'S FREQUENCY NEEDS
+// CHANGING.
+
+    FREQUENCYCHK: //USES EAX EBX ECX | PROC ID:1020
+    OUT 0,1020
+	MOV EAX, [D_REQUIREDREPORTSPERINTERVAL]
+	MOV EBX, [D_INTERVALRUNCOUNTER]
+	CMP EAX, EBX //COMPARE THE REQUIRED REPORTS TO THE # OF REPORTS / RUN COUNTER
+    OUT 1, EAX
+    OUT 2, EBX
+    OUT 3, ECX
+    JG FREQUENCYCHKINCREASE
+    JL FREQUENCYCHKDECREASE
+    JMP FREQUENCYCHKTEST     //DEBUGGING THING, JUST TO SEE IF EBX AND EAX ARE EVER EQUAL
+    FREQUENCYCHKRET: //PROC ID:10203 
+    OUT 0,10203
+    RET
+    
+    FREQUENCYCHKINCREASE: //PROC ID:10201
+    OUT 0,10201
+    MOV ECX, [D_FREQUENCYMODBASE]     //LOAD BASE FREQUENCY MODIFIER
+    MUL ECX, [D_FREQUENCYCHANGEMUL]   //MULTIPLY FREQUENCY CHANGE MULTIPLIER BY THE BASE FREQUENCY MODIFIER
+    PUSH EAX                          //SAVE EAX
+    MOV EAX, [D_BASEFREQUENCY]        //LOAD BASE FREQUENCY
+    ADD ECX, EAX
+    MOV [D_BASEFREQUENCY], ECX        //UPDATE BASE FREQUENCY
+    OUT 7, [D_BASEFREQUENCY]
+    POP EAX                           //RESTORE EAX
+    //INT 3
+    JMP FREQUENCYCHKRET
+    
+    FREQUENCYCHKDECREASE: //PROC ID:10202
+    OUT 0,10202
+    MOV ECX, [D_FREQUENCYMODBASE]     //BASE FREQUENCY MODIFIER
+    MUL ECX, [D_FREQUENCYCHANGEMUL]   //MULTIPLY FREQUENCY CHANGE MULTIPLIER BY THE BASE FREQUENCY MODIFIER
+    PUSH EAX                          //SAVE EAX
+    MOV EAX, [D_BASEFREQUENCY]        //LOAD BASE FREQUENCY
+    SUB EAX, ECX                      //SUBTRACT "ECX" FROM BASE FREQUENCY
+        //DEBUG ----------------------|
+        //DEBUG PROC ID: 102029900
+        //PARENT LABEL: FREQUENCYCHKDECREASE
+        OUT 0, 102029900
+        CALL BUTTONTESTPORT6
+        //DEBUG ----------------------|
+    MOV [D_BASEFREQUENCY], EAX        //UPDATE BASE FREQUENCY
+    OUT 7, [D_BASEFREQUENCY]
+    POP EAX                           //RESTORE EAX
+        //DEBUG ----------------------|
+        //DEBUG PROC ID: 102029901
+        //PARENT LABEL: FREQUENCYCHKDECREASE
+        OUT 0, 102029901
+        CALL BUTTONTESTPORT6
+        //DEBUG ----------------------|
+    //INT 3
+    JMP FREQUENCYCHKRET
+
+
+    FREQUENCYCHKTEST://PROC ID:10204 IF THE VALUES ARE EQUAL, SIMPLY RETURN FROM FUNCTION
+	OUT 0, 10204
+    RET
+
+//MUL ECX, 1000//AND THEN MULTIPLIED BY 1000 (1000 IS A GOOD VALUE FOR FREQUENCY CHANGES)
+//CALL BUTTONTESTPORT6 //DEBUGGING FUNCTION, STOPS PROGRAM IF (PORT6 != 0)
+//-------------------------------------------- FREQUENCYCHK DATA
+D_FREQUENCYMODBASE: DB 1000     //THE BASE MODIFIER VALUE THAT USED WHEN CHANGING THE FREQUENCY
+                                 
+                            
+D_FREQUENCYCHANGEMUL: DB 1      //THE VALUE THAT IS MULITPLIED BY FREQUENCYMODBASE FOR FINE TUNING PURPOSES
+
+D_BASEFREQUENCY: DB 8000
+
+//-------------------------------------------- END OF FREQUENCYCHK
+
+// ------------------------------------------- VIRTUAL PROCESSOR
+// THIS "VIRTUAL PROCESSOR" CODE CONTAINS COMMANDS THAT CAN BE PUT INTO THE
+// INTERVALCMDBUFFER. IT ALSO HAS THINGS LIKE VCPUID, WHICH IS A SET
+// FLAGS THAT HAVE INFO ABOUT THE VIRTUAL PROCESSOR'S STATE.
+
+
+
+
+
+
+
+
+//-------------------------------------------- OTHER FUNCTIONS
+BUTTONTESTPORT6:
+PUSH R0
+OUT 1, EAX
+OUT 2, EBX
+OUT 3, ECX
+BUTTONTESTPORT6LOOP:
+MOV R0, PORT5
+CMP R0, 0
+JNE BUTTONTESTPORT6RET
+MOV R0, PORT6
+CMP R0, 0
+JNE BUTTONTESTPORT6LOOP
+BUTTONTESTPORT6RET:
+POP R0
+RET
+
+
+CLRPORTS0_7:
+OUT 0,0
+OUT 1,0
+OUT 2,0
+OUT 3,0
+OUT 4,0
+OUT 5,0
+OUT 6,0
+OUT 7,0
+RET
