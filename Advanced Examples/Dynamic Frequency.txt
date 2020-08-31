@@ -43,7 +43,7 @@
 //
 //      Variable for the interval time: D_INTERVALTIME
 //      Variable for the # of required reports per interval: D_REQUIREDREPORTSPERINTERVAL
-//		These variables should be around line 180
+//		These variables should be around line 190
 //----------------------------------------------------------------------------------
 
 //-----------------------------------------------------------------
