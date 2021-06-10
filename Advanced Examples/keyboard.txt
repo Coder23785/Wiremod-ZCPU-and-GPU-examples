@@ -1,0 +1,157 @@
+// This code isn't the fastest by any means but its easy to understand... kind of...
+
+INIT:
+CALL DBGKW_CLRPORTS
+VMODE 3
+MAIN: //PROC ID:1000
+OUT 0, 1000
+CALL KWRITE
+JMP MAIN
+
+//------------------------------
+KWRITE: //PROC ID:1100
+OUT 0, 1100
+CALL DBGKW_REGOUT
+MOV EAX, [KW_DEVICEADDR_KEYBOARD]
+INC EAX // We need the address of the characters being pressed, hence the +1
+MOV EBX, KW_KEYJUMPTABLE
+MOV ECX, [EAX]
+MOV EDX, [KW_KEYOUTOFFSET]
+ADD EDX, [KW_DEVICEADDR_CONSOLESCREEN]
+ADD EDX, 65536
+MOV R0,  [KW_KEYCOLOR]
+OUT 0, 1101
+CALL DBGKW_REGOUT
+//------------------------------ DEBUGGING SECTION
+PUSH ECX
+PUSH EBX
+OUT 5, (ECX + EBX)
+POP EBX
+POP ECX
+//------------------------------
+JMPF [EBX+ECX], CS //goto a position in the jumptable based off of what key is currently being pressed
+//------------------------------
+
+
+//------------------------------
+KWKO: // This top label is only here so that the jump table takes up less screen space (is a visual thing only, it doesn't actually affect memory)
+KWRITE_KEYOUT: // PROC ID:1200
+// EAX = ADDR OF KEYBUFFER
+// EBX = ADDR OF KEYJUMPTABLE
+// ECX = 1ST KEY IN THE KEY BUFFER
+// EDX = ADDR OF NEXT CHAR IN CONSOLE SCREEN
+// R0  = KW_KEYCOLOR
+OUT 0, 1200
+CALL DBGKW_REGOUT
+MOV [EDX], ECX 
+INC EDX
+MOV [EDX], R0
+INC EDX
+PUSH EDX
+MOV EDX, [KW_KEYOUTOFFSET] //-------------------------
+ADD EDX, 2                 // Update [KW_KEYOUTOFFSET]
+MOV [KW_KEYOUTOFFSET], EDX //-------------------------
+POP EDX
+RET
+KWRITE_CLRKEYBUFFER:
+MOV R0, [KW_DEVICEADDR_KEYBOARD]
+INC R0
+MMOV KW_CLRKEYBUFFERMATRIX, R0
+RET
+//------------------------------
+
+//----------------------------------------------------DEBUG FUNCTIONS
+
+//------------------------------
+DBGKW_REGOUT:
+OUT 1, EAX
+OUT 2, EBX
+OUT 3, ECX
+OUT 4, EDX
+RET
+//------------------------------
+
+//------------------------------
+DBGKW_CLRPORTS:
+OUT 0,0
+OUT 1,0
+OUT 2,0
+OUT 3,0
+OUT 4,0
+RET
+//------------------------------
+
+//---------------------------------------------------- KWCTRL BELOW (Special key functions)
+
+KNOP:
+KWCTRL_NO_OPERATION: //PROC ID:1202
+OUT 0, 1202
+NOP
+RET
+
+K175:
+KWCTRL_175: //PROC ID:1201
+OUT 0, 1201
+CALL KWRITE_CLRKEYBUFFER
+RET
+
+KDEL:
+KWCTRL_DELETE:
+OUT 0, 1203
+PUSH R0
+MOV R0, [KW_KEYOUTOFFSET]
+ADD R0, 65536
+ADD R0, [KW_DEVICEADDR_CONSOLESCREEN]
+SUB R0, 2
+MOV [R0], 0
+MOV [R0+1], 0
+POP R0
+MOV R0, [KW_KEYOUTOFFSET]
+//CMP R0,0
+//JNE KWCTRL_DELETEEND
+SUB R0, 2
+MOV [KW_KEYOUTOFFSET], R0
+CALL KWRITE_CLRKEYBUFFER
+CALL KHOLD
+KWCTRL_DELETEEND://PROC ID:12000
+RET
+
+
+KHOLD: //This is called to keep keys like backspace from repeating when held down
+OUT 0, 12000
+CALL KWRITE_CLRKEYBUFFER
+MOV EAX, [KW_DEVICEADDR_KEYBOARD]
+OUT 1, [EAX]
+CMP [EAX+1], 0          //This makes sure the keybuffer is empty before
+JNE KHOLD               //returning.
+KHOLDEND:
+RET
+//------------------------------------------------------------------------------------------
+KW_KEYCOLOR:                   DB 000999    //
+KW_DEVICEADDR_KEYBOARD:        DB 65536     //
+KW_DEVICEADDR_CONSOLESCREEN:   DB 2000      //
+KW_KEYOUTOFFSET:               DB 0         //
+KW_CLRKEYBUFFERMATRIX:         ALLOC 16     //
+KW_KEYJUMPTABLE:
+
+// 0  |  1  | 2  | 3  | 4  | 5  | 6  | 7  | 8  | 9  | 10 | 11 | 12 | 13 | 14 | 15 | %   //16 per line  | (0-15)
+// 1  |  2  | 3  | 4  | 5  | 6  | 7  | 8  | 9  | 10 | 11 | 12 | 13 | 14 | 15 | 16 | %   //256 in total | (0-255)
+DB KNOP,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 1  (0) //------------------------------      
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 2  (1)      
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 3  (2)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 4  (3)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 5  (4)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 6  (5)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 7  (6)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KDEL // 8  (7) //------------------------------
+KW_KEYJUMPTABLE2: //THIS IS ONLY HERE SO THE ADDRESSES CAN BE SEEN MORE EASILY.
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 9  (8) //------------------------------
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 10 (9)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 11 (10)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 12 (11)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 13 (12)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 14 (13)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,K175,KWKO,KWKO,KWKO,KWKO,KWKO // 15 (14)
+DB KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO,KWKO // 16 (15) //------------------------------
+// 1  |  2  | 3  | 4  |  5 |  6 | 7  | 8  | 9  | 10 | 11 | 12 | 13 | 14 | 15 | 16 | %
+// 0  |  1  | 2  | 3  | 4  | 5  | 6  | 7  | 8  | 9  | 10 | 11 | 12 | 13 | 14 | 15 | %
